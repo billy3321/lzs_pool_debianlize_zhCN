@@ -1,3 +1,0 @@
-#pkg install list
-gcin
-gcin-qt3-immodule
