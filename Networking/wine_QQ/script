@@ -1,0 +1,172 @@
+#!/usr/bin/python
+import platform
+import os
+
+from lazyscripts import pkgmgr
+import logging
+from sys import exit
+from shutil import rmtree
+from zlib import decompress
+from tempfile import mkdtemp
+from base64 import decodestring
+from platform import architecture
+from os.path import abspath, expanduser, exists, join
+from os import chdir, chmod, environ, mkdir, rename, system, strerror
+
+
+distro = platform.dist()
+
+if distro[0] not in ('Ubuntu','Debian'):	exit(1)
+o = pkgmgr.get_pkgmgr(distro[0].lower())
+if not o:	exit(1)
+
+def work():
+    if architecture()[0] == '32bit':
+        platform = 'i386'
+        pkgname = "binfmt-support cabextract debconf dpkg libasound2 libaudio2 \
+                   libc6 libesd0 libgl1-mesa-glx libglu1-mesa libgphoto2-2 libgphoto2-port0 libice6 \
+                   liblcms1 libldap-2.4-2 libmpg123-0 libopenal1 libsm6 libx11-6 libxau6 libxext6 \
+                   libxml2 libxt6 procps ttf-wqy-microhei zlib1g"
+    elif architecture()[0] == '64bit':
+        platform = 'amd64'
+        pkgname = "binfmt-support cabextract debconf dpkg ia32-libs \
+                   lib32asound2 lib32nss-mdns libc6-i386 procps ttf-wqy-microhei zlib1g"
+
+    os.system(o.make_cmd('install', pkgname))
+
+    def shell(cmd): # 执行 shell 命令
+        errno = system(cmd)
+        if 0 != errno:
+            raise OSError(errno, strerror(errno))
+
+    home = expanduser('~')
+    default = join(home, '.winevil')
+    prefix = raw_input('安装目录 [%r]: '%default).strip()
+    if '' == prefix:
+        prefix = default
+    else:
+        prefix = abspath(prefix)
+    wineprefix = join(prefix, '.wine')
+    wine_home  = join(prefix, 'wine-1.2')
+    wine_bin   = join(wine_home, 'bin')
+    winexec    = join(wine_bin, 'wine')
+    winetricks = join(wine_bin, 'winetricks')
+    program    = join(wineprefix, 'drive_c', 'Program Files')
+    # 创建安装目录
+    if exists(prefix):
+        logging.info('指定的目录 %r 已经存在，跳过创建'%prefix)
+    else:
+        mkdir(prefix)
+        logging.info('目录 %r 已经创建'%prefix)
+    # 安装 wine-1.2
+    if exists(wine_home):
+        logging.info('检测到 wine-1.2 已经存在，跳过安装')
+    else:
+        chdir(prefix)
+        p = 'wine-1.2_%s'%platform
+        q = p + '.tar.bz2'
+        shell(('wget http://winevil.googlecode.com/files/%s && '
+            'tar -xjf %s && mv %s wine-1.2 && rm -f %s')%(q, q, p, q))
+    # 下载 winetricks，安装 MS 原生支持库
+    if exists(winetricks):
+        logging.info('检测到 wintricks 已经存在，跳过安装')
+    else:
+        chdir(wine_bin)
+        shell(('wget http://www.kegel.com/wine/winetricks && '
+            'chmod +x winetricks'))
+        filename = join(wine_bin, winetricks)
+        # XXX 忽略有时 winetricks sha1sum 滞后的问题
+        s = open(filename).read()
+        s = s.replace('verify_sha1sum()', ('verify_sha1sum() {\n\t'
+            'echo "ignore sha1sum check"\n}\n\n'
+            'verify_sha1sum_backup()'))
+        open(filename, 'w').write(s)
+        logging.info('修改了 winetricks（sha1sum 有时会有滞后）')
+        # 指定 winetricks 运行时使用 winevil 自带的 wine
+        environ['PATH'] = wine_bin + ':' + environ['PATH']
+        environ['WINEPREFIX'] = wineprefix
+        shell('./winetricks corefonts flash fontfix fontsmooth-rgb gdiplus ie6 '
+               'msxml3 msxml6 riched20 riched30 vcrun2003 vcrun2005 vcrun2008 '
+               'vcrun6sp6 wsh56')
+        logging.info('已经更新到 MS 原生支持库')
+    # 将注册表更新到中文
+    tmp = mkdtemp()
+    try:
+        chdir(tmp)
+        open('c.reg', 'w').write(rgc)
+        open('z.reg', 'w').write(rgz)
+        shell('regedit c.reg && regedit z.reg')
+    finally:
+        rmtree(tmp)
+    logging.info('注册表已经对中文进行了更新')
+    # 安装启动图标
+    def shortcut(name, bin, title, title_zh):
+        if exists(join(home, 'Desktop')):
+            filename = join(home, 'Desktop', name)
+        else:
+            filename = join(home, name)
+        text = shortcut_template%(wineprefix, winexec, bin, title_zh, title)
+        open(filename, 'w').write(text)
+        chmod(filename, 0755)
+        logging.info('程序启动器已经安装在 %r'%filename)
+
+    qq2009 = True
+    if qq2009: # 安装 QQ2009
+        if exists(join(program, 'qq2009')):
+            logging.info('检测到 QQ2009，跳过安装')
+        else:
+            chdir(program)
+            s = 'qq2009.tar.bz2'
+            shell(('wget http://winevils.googlecode.com/files/%s &&'
+                'tar -xjf %s && rm -f %s')%(s, s, s))
+            shortcut('winevil-qq2009.desktop',
+                join(program, 'qq2009', 'Bin', 'QQ.exe'),
+                'QQ2009', 'QQ2009')
+    logging.info('所有安装已经成功完成')
+
+def main():
+    try:
+        work()
+    except Exception, e:
+        logging.fatal('安装异常中止：%r'%e)
+        exit(e.args[0])
+
+shortcut_template = decompress(decodestring(('eJxtjcEKgkAURffvK8xwadYHzCJqAjcS'
+'IRWIxDS+dGh8M8xoaF9fBrVqcy/3LM6dz5Leu+SqKEF6\nBENVx8YiARRb9PfO2IBT58YSjui8MsR'
+'WiyXko0W2tlYrKbo3hBxdq0hodhPaI6TSUPFsLpusZDWZ\nFmMrCHWsRU+yQQd8QMmmv1Oa8f2B79'
+'IzCyMfBr+ATLT4dUT+M6ee1H+dLwQXQ84=\n')))
+
+rgc = decompress(decodestring(('eNp1UttuwjAMfecrLD5galJ64WEPwGBMu2gqMDRtE8poBh'
+'FdgtKwjb+f06ZAi1Dlh55j+xzbmQuZ\nqt8cEr4SudF7GKbCKA0vXOdCSQiuPK/VehvfD18Xg1mSD'
+'J+mi9lkmLwPlDRaZfDMJM/wL1M6/2i1\ne0sjfnhf6ZTr9nWbEgrUizG8dkVOhck4ch7EHaA0ssR2'
+'O1d6M9mypWUIjcEFkn223Ky02sm0KIoQ\nD6jFd8Yo2csM15IZPnK1MQEXh5ybzWTNcExLEx8IQbo'
+'wVNKukvohUN8HSsIDNRaZWK2NZYMAXBzY\nh4rrEKzs4jDHyqNiRIGE1rR/IKf8zxTD4IfgrWap4N'
+'LU9xOiy07XCVYpd5LVkkgQ4ahoy3dZe9e7\nLnucAzsSLwTSjY6wK6mPOFZmqnH1Qq6K6zq/5U0qG'
+'xcOfeaSopnAwwX5TbbSJrh8PDntlO2/VGNH\nFpoXj/XUKbVOH7ncndm3YKPFZIkPNvtk535rTmpt'
+'ziVP4JFm3/xEoEQbqtbIhfVbql/aOXl7/9cF\n+Dw=\n')))
+
+rgz = decompress(decodestring(('eNrFVsFu2kAQvecrVpxaaQ8YbEwi9UANCVEJaW1oikoVbf'
+'AQVrHX1doOyQf01FPVY8+9psceorQ/\nk1bNX3TWEEKcOCYhVRFIg+fN2zdvll3sxkajvtnRV1beN'
+'l80ertW17Yb7c5u12nYfScYRmMmob/D\nBfTfaBqpS34I8t1KwfI4iMjhLtRExGseZ+EOj0ZWIKHw'
+'rNArZCJsEC7IG5h06jY5ViAiGXjkJRPg\n9esQHkTBe9Syjs8dPwiiERf7WF4qpJ51jt+jKnccSHe'
+'tOHmVUpAN5vvsGsYwqynMtlRqWcQDkWLT\nLvW2tq1aa3erZjU3240r/7b4QAYhflNOusE4JO1O34'
+'qlRL7XIENk7KulWlwcTBtS4bTh+cV0/FwB\n6jBksRdZIybnQWUFejxFfec4jMCfimvFA+4y4jARk'
+'q7gg8BFb0dw9MR8umaa1NSouUpLLjUZrRi0\nArRSTQJ8CNTU1btSpqUBNUxKyARiYBEGWhKvJtgi'
+'NS4JMNZnHBi7tDJMiIe0WKTKj1k3E1kOSD68\nEoWFrqpVJWZaha5Ro5Qsh8wDFRBiGMkiswrMlKk'
+'OajVFtpcoXc1nQh5C9Bl8nuaeRk0AqGxJoxzu\nO7F48LxS08Lx3V9GloOEZHl4u4N3ThVtv5UpY6'
+'rKmg4bBeoIeOCuSbFjN0vsmlTH2M0Suya1Z3Bo\n990156c/f518fCxrkp/YNeuR/Pzs8z/k/3Hy5'
+'+zbxZcPF6ef/uveV2J+f/2ebnaJraGrU2HC/DgH\nvhPvhRGP4ghCPOxrkjO8fwo7IF7FTPQ4SXhI'
+'E3hhmiXPmRfxAdWqlRyg1aClcjUP1LOxNT0HtSEB\nDqhW0XJwna6NqFImygpivNQlacN4Ecwivc7'
+'Dczq+Bs3pex6b3/08Os+DdX4ELl7xmYAmeId3JgE9\nYZmILYc4I/A8Uvf2FwKRbK2TfyKZ6cszPC'
+'vNfQjvziaO2UgiFpl1uiRn3jfgOTNP4/Pnnq7Im33H\nD4nti4z8X4+eZ4k=\n')))
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
+
+
+
