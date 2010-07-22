@@ -1,0 +1,6 @@
+#!/bin/bash
+
+source $LIB_ROOT/shlib.bash
+$WGET http://dl_dir.qq.com/linuxqq/linuxqq_v1.0.2-beta1_i386.deb
+dpkg -i linuxqq_v1.0.2-beta1_i386.deb
+
