@@ -1,5 +1,7 @@
 #!/usr/bin/python
 # -*- encoding=utf8 -*-
+# Scripts from http://code.google.com/p/winevil/
+
 import platform
 import os
 
