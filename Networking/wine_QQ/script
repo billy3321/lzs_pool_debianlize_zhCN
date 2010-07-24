@@ -93,7 +93,9 @@ def work():
         chdir(tmp)
         open('c.reg', 'w').write(rgc)
         open('z.reg', 'w').write(rgz)
-        shell('regedit c.reg && regedit z.reg')
+        #shell('regedit c.reg && regedit z.reg')
+        reg_cmd = '%s/regedit c.reg && %s/regedit z.reg' % (wine_bin, wine_bin)
+        shell(reg_cmd)
     finally:
         rmtree(tmp)
     logging.info('注册表已经对中文进行了更新')
