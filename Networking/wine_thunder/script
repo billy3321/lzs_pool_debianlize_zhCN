@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- encoding=utf8 -*-
 import platform
 import os
 
@@ -39,13 +40,8 @@ def work():
         if 0 != errno:
             raise OSError(errno, strerror(errno))
 
-    home = expanduser('~')
-    default = join(home, '.winevil')
-    prefix = raw_input('安装目录 [%r]: '%default).strip()
-    if '' == prefix:
-        prefix = default
-    else:
-        prefix = abspath(prefix)
+    home = os.getenv('REAL_HOME')
+    prefix = join(home, '.winevil')
     wineprefix = join(prefix, '.wine')
     wine_home  = join(prefix, 'wine-1.2')
     wine_bin   = join(wine_home, 'bin')
