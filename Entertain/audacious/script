@@ -8,7 +8,7 @@ else
     sudo -u $REAL_USER mkdir -p "$REAL_HOME/.config/audacious/"
     sudo -u $REAL_USER cat > "$REAL_HOME/.config/audacious/config" << EOF 
 [audacious]
-chardet_detector=Taiwanese
+chardet_detector=Chinese
 chardet_fallback=big5 
 EOF
 fi
