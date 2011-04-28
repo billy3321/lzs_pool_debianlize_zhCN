@@ -3,6 +3,10 @@
 
 sudo apt-add-repository ppa:gwibber-team/ppa
 sudo apt-get update
+if [ "$DISTRO_VERSION" == "10.10" ]; then
 sudo apt-get -y --force-yes install gwibber gwibber-service-sina gwibber-service-sohu
+else
+sudo apt-get -y --force-yes install gwibber
+fi
 
 
