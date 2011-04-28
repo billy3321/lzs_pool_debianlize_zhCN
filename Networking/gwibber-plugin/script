@@ -1,0 +1,7 @@
+#!/bin/python
+
+sudo apt-add-repository ppa:gwibber-team/ppa
+sudo apt-get update
+sudo apt-get -y --force-yes install gwibber gwibber-service-sina gwibber-service-sohu
+
+
