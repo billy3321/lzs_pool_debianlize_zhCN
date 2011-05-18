@@ -1,0 +1,12 @@
+#!/bin/bash
+
+source $LIB_ROOT/shlib.bash
+
+if [ ${PLAT_NAME} == "i386" ]; then
+    $WGET http://libqq-pidgin.googlecode.com/files/libqq_0.70.2_i386.deb
+    dpkg -i libqq_0.70.2_i386.deb
+elif [ ${PLAT_NAME} == "x86_64" ]; then
+    $WGET http://libqq-pidgin.googlecode.com/files/libqq_deb_0.69_amd64.deb
+    dpkg -i libqq_deb_0.69_amd64.deb
+fi
+
